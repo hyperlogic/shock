@@ -14,7 +14,11 @@ var entityNames = ["debug-panel",
                    "entry-back-trigger",  // used to detect when avatar is deep inside container.
                    "container-trigger",   // used to detect when avatars are in the container.
                    "entry-collision",     // used to block front of container
-                   "exit-collision"];     // used to block back of container
+                   "exit-collision",      // used to block back of container
+                   "entry-light",         // entry way light.
+                   "strobe-light",        // strobe light in middle of container
+                   "exit-light"           // exit way light.
+                  ];
 
 var entityIDMap = {};
 
@@ -28,12 +32,20 @@ var DOOR_SLAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/door-slam.w
 var doorSlamSound = SoundCache.getSound(DOOR_SLAM_URL);
 var doorSlamInjector;
 
+var SCREAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/screams.wav";
+var screamSound = SoundCache.getSound(SCREAM_URL);
+var screamInjector;
+
 var stateTable = {
     uninitialized: { update: uninitializedUpdate },
     idle: { enter: idleEnter, update: idleUpdate },
     closeEntryDoors: { enter: closeEntryDoorsEnter, update: closeEntryDoorsUpdate },
+    spook: { enter: spookEnter, update: spookUpdate },
     openExitDoors: { enter: openExitDoorsEnter, update: openExitDoorsUpdate }
 };
+
+var strobeTimer = 0;
+var strobeOn = false;
 
 function editEntity(name, props) {
     var id = lookupEntityByName(name);
@@ -92,6 +104,9 @@ function uninitializedUpdate(dt) {
 function idleEnter() {
     editEntity("entry-collision", { collisionless: true, visible: false });
     editEntity("exit-collision", { collisionless: false, visible: true });
+    editEntity("entry-light", { intensity: 1.0 });
+    editEntity("exit-light", { intensity: 0.0 });
+    editEntity("strobe-light", { intensity: 0.0 });
 }
 
 function idleUpdate(dt) {
@@ -105,6 +120,8 @@ function idleUpdate(dt) {
 //
 
 function closeEntryDoorsEnter() {
+
+    // slam the door!
     var id = lookupEntityByName("entry-collision");
     var doorPosition = ORIGIN;
     if (id) {
@@ -118,10 +135,51 @@ function closeEntryDoorsEnter() {
         }
     }
     editEntity("entry-collision", { collisionless: false, visible: true });
+
+    // turn out the lights!
+    editEntity("entry-light", { intensity: 0 });
 }
 
 function closeEntryDoorsUpdate(dt) {
     if (timeInState > 3.0) {
+        setState("spook");
+    }
+}
+
+//
+// spook
+//
+
+function spookEnter() {
+
+    // begin the screams!
+    var id = lookupEntityByName("container-trigger");
+    var screamPosition = ORIGIN;
+    if (id) {
+        screamPosition = Entities.getEntityProperties(id, "position").position;
+    }
+    if (screamSound.downloaded) {
+        if (screamInjector) {
+            screamInjector.restart();
+        } else {
+            screamInjector = Audio.playSound(screamSound, { position: screamPosition, volume: 0.7, loop: false });
+        }
+    }
+
+    strobeTimer = 0;
+}
+
+function spookUpdate(dt) {
+    // strobe the lights!
+    strobeTimer += dt;
+    if (strobeTimer > 0.05) {
+        strobeTimer = 0.0;
+        strobeOn = !strobeOn;
+        editEntity("strobe-light", { intensity: strobeOn ? 1.0 : 0.0 });
+    }
+
+    if (timeInState > 10.0) {
+        editEntity("strobe-light", { intensity: 0.0 });
         setState("openExitDoors");
     }
 }
@@ -132,6 +190,7 @@ function closeEntryDoorsUpdate(dt) {
 
 function openExitDoorsEnter() {
     editEntity("exit-collision", { collisionless: true, visible: false });
+    editEntity("exit-light", { intensity: 1.0 });
 }
 
 function openExitDoorsUpdate(dt) {
