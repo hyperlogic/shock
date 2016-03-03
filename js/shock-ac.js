@@ -17,7 +17,8 @@ var entityNames = ["debug-panel",
                    "exit-collision",      // used to block back of container
                    "entry-light",         // entry way light.
                    "strobe-light",        // strobe light in middle of container
-                   "exit-light"           // exit way light.
+                   "exit-light",          // exit way light.
+                   "bloody-container"     // bloody interior
                   ];
 
 var entityIDMap = {};
@@ -27,12 +28,13 @@ var numAvatarsInEntryTriggerMap = {};
 
 var state;
 var timeInState = 0;
+var stateEnterTime = Date.now();
 
 var DOOR_SLAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/door-slam.wav?2";
 var doorSlamSound = SoundCache.getSound(DOOR_SLAM_URL);
 var doorSlamInjector;
 
-var SCREAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/screams.wav";
+var SCREAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/screams.wav?1";
 var screamSound = SoundCache.getSound(SCREAM_URL);
 var screamInjector;
 
@@ -40,12 +42,16 @@ var stateTable = {
     uninitialized: { update: uninitializedUpdate },
     idle: { enter: idleEnter, update: idleUpdate },
     closeEntryDoors: { enter: closeEntryDoorsEnter, update: closeEntryDoorsUpdate },
-    spook: { enter: spookEnter, update: spookUpdate },
+    lightsOut: { enter: lightsOutEnter, update: lightsOutUpdate },
+    strobe: { enter: strobeEnter, update: strobeUpdate },
+    lightsOutAgain: { enter: lightsOutAgainEnter, update: lightsOutAgainUpdate },
     openExitDoors: { enter: openExitDoorsEnter, update: openExitDoorsUpdate }
 };
 
 var strobeTimer = 0;
-var strobeOn = false;
+var strobeBlink = false;
+
+var entryTimer = 0;
 
 function editEntity(name, props) {
     var id = lookupEntityByName(name);
@@ -102,15 +108,23 @@ function uninitializedUpdate(dt) {
 //
 
 function idleEnter() {
+    editEntity("bloody-container", { visible: false });
     editEntity("entry-collision", { collisionless: true, visible: false });
     editEntity("exit-collision", { collisionless: false, visible: true });
-    editEntity("entry-light", { intensity: 1.0 });
+    editEntity("entry-light", { intensity: 0.5 });
     editEntity("exit-light", { intensity: 0.0 });
     editEntity("strobe-light", { intensity: 0.0 });
+    entryTimer = 0;
 }
 
 function idleUpdate(dt) {
     if (numAvatarsInEntry() > 0) {
+        entryTimer += dt;
+    } else {
+        entryTimer = 0;
+    }
+
+    if (entryTimer > 1) {
         setState("closeEntryDoors");
     }
 }
@@ -131,7 +145,7 @@ function closeEntryDoorsEnter() {
         if (doorSlamInjector) {
             doorSlamInjector.restart();
         } else {
-            doorSlamInjector = Audio.playSound(doorSlamSound, { position: doorPosition, volume: 0.7, loop: false });
+            doorSlamInjector = Audio.playSound(doorSlamSound, { position: doorPosition, volume: 1.0, loop: false });
         }
     }
     editEntity("entry-collision", { collisionless: false, visible: true });
@@ -141,18 +155,18 @@ function closeEntryDoorsEnter() {
 }
 
 function closeEntryDoorsUpdate(dt) {
-    if (timeInState > 3.0) {
-        setState("spook");
+    if (timeInState > 1.0) {
+        setState("lightsOut");
     }
 }
 
 //
-// spook
+// lightsOut
 //
 
-function spookEnter() {
+function lightsOutEnter() {
 
-    // begin the screams!
+    // begin the scream track
     var id = lookupEntityByName("container-trigger");
     var screamPosition = ORIGIN;
     if (id) {
@@ -162,24 +176,56 @@ function spookEnter() {
         if (screamInjector) {
             screamInjector.restart();
         } else {
-            screamInjector = Audio.playSound(screamSound, { position: screamPosition, volume: 0.7, loop: false });
+            screamInjector = Audio.playSound(screamSound, { position: screamPosition, volume: 1.0, loop: false });
         }
     }
-
-    strobeTimer = 0;
 }
 
-function spookUpdate(dt) {
-    // strobe the lights!
+function lightsOutUpdate() {
+    if (timeInState > 6) {
+        setState("strobe");
+    }
+}
+
+//
+// strobe
+//
+
+function strobeEnter() {
+    strobeTimer = 0;
+    // show the bloody interior
+    editEntity("bloody-container", { visible: true });
+}
+
+function strobeUpdate(dt) {
+
     strobeTimer += dt;
     if (strobeTimer > 0.05) {
         strobeTimer = 0.0;
-        strobeOn = !strobeOn;
-        editEntity("strobe-light", { intensity: strobeOn ? 1.0 : 0.0 });
+        strobeBlink = !strobeBlink;
+        editEntity("strobe-light", { intensity: strobeBlink ? 0.7 : 0.0 });
     }
 
-    if (timeInState > 10.0) {
-        editEntity("strobe-light", { intensity: 0.0 });
+    // after five seconds turn the lights out again!
+    if (timeInState > 8.0) {
+        setState("lightsOutAgain");
+    }
+}
+
+//
+// lightsOutAgain
+//
+
+function lightsOutAgainEnter() {
+    // turn off the strobe
+    editEntity("strobe-light", { intensity: 0.0 });
+
+    // hide the bloody interior
+    editEntity("bloody-container", { visible: false });
+}
+
+function lightsOutAgainUpdate(dt) {
+    if (timeInState > 4.0) {
         setState("openExitDoors");
     }
 }
@@ -189,12 +235,28 @@ function spookUpdate(dt) {
 //
 
 function openExitDoorsEnter() {
+    editEntity("strobe-light", { intensity: 0.0 });
+    editEntity("bloody-container", { visible: false });
     editEntity("exit-collision", { collisionless: true, visible: false });
-    editEntity("exit-light", { intensity: 1.0 });
+    editEntity("exit-light", { intensity: 0.5 });
+
+    // play door slam
+    var id = lookupEntityByName("exit-collision");
+    var doorPosition = ORIGIN;
+    if (id) {
+        doorPosition = Entities.getEntityProperties(id, "position").position;
+    }
+    if (doorSlamSound.downloaded) {
+        if (doorSlamInjector) {
+            doorSlamInjector.restart();
+        } else {
+            doorSlamInjector = Audio.playSound(doorSlamSound, { position: doorPosition, volume: 1.0, loop: false });
+        }
+    }
 }
 
 function openExitDoorsUpdate(dt) {
-    // TODO: push player out of the container
+    // wait till all avatars leave the container
     if (numAvatarsInContainer() === 0) {
         setState("idle");
     }
@@ -217,6 +279,9 @@ function setState(newState) {
             debug("ERROR: no state table for state = " + state);
         }
 
+        stateEnterTime = Date.now();
+        timeInState = 0;
+
         // enter new state
         if (stateTable[newState]) {
             var enterFunc = stateTable[newState].enter;
@@ -227,7 +292,6 @@ function setState(newState) {
             debug("ERROR: no state table for state = " + newState);
         }
 
-        timeInState = 0;
         state = newState;
         debug("state = " + state);
     }
@@ -259,7 +323,9 @@ function numAvatarsInContainer() {
 
 function update(dt) {
     var updateFunc = stateTable[state].update;
-    timeInState += dt;
+
+    timeInState = (Date.now() - stateEnterTime) / 1000.0;
+
     if (updateFunc) {
         updateFunc(dt);
     }

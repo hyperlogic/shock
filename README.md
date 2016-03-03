@@ -4,6 +4,7 @@ Shock
 asset list
 
 file:///msys64/home/anthony/code/shock/cargo-container.fbx
+file:///msys64/home/anthony/code/shock/bloody-cargo-container.fbx
 
 script list
 -----------------
