@@ -5,8 +5,6 @@
 //
 
 var ORIGIN = {x: 0, y: 0, z: 0};
-var soundURL = "https://s3.amazonaws.com/hifi-public/sounds/08_Funny_Bone.wav";
-var sound = SoundCache.getSound(soundURL);
 var initialized = false;
 var frameCount = 0;
 var TRIGGER_CHANNEL = "shock-trigger-channel";
@@ -17,6 +15,7 @@ var entityNames = ["debug-panel",
                    "container-trigger",   // used to detect when avatars are in the container.
                    "entry-collision",     // used to block front of container
                    "exit-collision"];     // used to block back of container
+
 var entityIDMap = {};
 
 var numAvatarsInContainerTriggerMap = {};
@@ -24,6 +23,10 @@ var numAvatarsInEntryTriggerMap = {};
 
 var state;
 var timeInState = 0;
+
+var DOOR_SLAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/door-slam.wav?2";
+var doorSlamSound = SoundCache.getSound(DOOR_SLAM_URL);
+var doorSlamInjector;
 
 var stateTable = {
     uninitialized: { update: uninitializedUpdate },
@@ -102,6 +105,18 @@ function idleUpdate(dt) {
 //
 
 function closeEntryDoorsEnter() {
+    var id = lookupEntityByName("entry-collision");
+    var doorPosition = ORIGIN;
+    if (id) {
+        doorPosition = Entities.getEntityProperties(id, "position").position;
+    }
+    if (doorSlamSound.downloaded) {
+        if (doorSlamInjector) {
+            doorSlamInjector.restart();
+        } else {
+            doorSlamInjector = Audio.playSound(doorSlamSound, { position: doorPosition, volume: 0.7, loop: false });
+        }
+    }
     editEntity("entry-collision", { collisionless: false, visible: true });
 }
 
@@ -219,7 +234,7 @@ Messages.subscribe(TRIGGER_CHANNEL);
 Messages.messageReceived.connect(function (channel, message, senderID) {
 
     var AVATAR_TRIGGER_TIMEOUT = 10.0;
-    print("MESSAGE, channel = " + channel + ", message = " + message + ", senderID = " + senderID);
+    //print("MESSAGE, channel = " + channel + ", message = " + message + ", senderID = " + senderID);
     if (channel === TRIGGER_CHANNEL) {
         var data = JSON.parse(message);
         if (data.inside) {
