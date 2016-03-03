@@ -7,15 +7,33 @@
 var TRIGGER_CHANNEL = "shock-trigger-channel";
 
 (function () {
-    var sequenceNumber = 0;
-    this.enterEntity = function(entityID) {
-        Messages.sendMessage(TRIGGER_CHANNEL, JSON.stringify({ action: "enter", entityID: entityID, sequenceNumber: sequenceNumber }));
-        print("trigger enter, entityId = " + entityID + ", seq = " + sequenceNumber);
-        sequenceNumber++;
+    var inside = false;
+    var timer = 0.0;
+    var entityID;
+    this.preload = function (id) {
+        entityID = id;
+        Script.update.connect(this.update);
     };
-    this.leaveEntity = function(entityID) {
-        Messages.sendMessage(TRIGGER_CHANNEL, JSON.stringify({ action: "leave", entityID: entityID, sequenceNumber: sequenceNumber }));
-        print("trigger leave, entityId = " + entityID + ", seq = " + sequenceNumber);
-        sequenceNumber++;
+    this.enterEntity = function (id) {
+        inside = true;
+        this.sendUpdate();
+    };
+    this.leaveEntity = function (id) {
+        inside = false;
+        this.sendUpdate();
+    };
+    this.update = function (dt) {
+        timer += dt;
+        if (timer > 1) {
+            sendUpdate();
+            timer = 0;
+        }
+    };
+    function sendUpdate() {
+        Messages.sendMessage(TRIGGER_CHANNEL, JSON.stringify({ inside: inside, entityID: entityID }));
+        print("sendMessage inside = " + inside + ", entityID = " + entityID);
+    };
+    this.unload = function (entityID) {
+        Script.update.disconnect(this.update);
     };
 })

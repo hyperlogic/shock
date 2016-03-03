@@ -19,4 +19,8 @@ entity scripts have funky syntax that dont pass jshint.
 Entity script onEnter doesnt trigger when someone spawns inside of the entity.
 Entity scripts sometimes do not run after a server-console "restart".
 
+Entity script woes
+---------------------
+Not easy to determine what event methods are called.  The docs should somehow catergorize them.
+
 

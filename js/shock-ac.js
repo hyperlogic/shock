@@ -19,8 +19,8 @@ var entityNames = ["debug-panel",
                    "exit-collision"];     // used to block back of container
 var entityIDMap = {};
 
-var numAvatarsInEntryTrigger = 0;
-var numAvatarsInContainer = 0;
+var numAvatarsInContainerTriggerMap = {};
+var numAvatarsInEntryTriggerMap = {};
 
 var state;
 var timeInState = 0;
@@ -92,7 +92,7 @@ function idleEnter() {
 }
 
 function idleUpdate(dt) {
-    if (numAvatarsInEntryTrigger > 0) {
+    if (numAvatarsInEntry() > 0) {
         setState("closeEntryDoors");
     }
 }
@@ -121,7 +121,7 @@ function openExitDoorsEnter() {
 
 function openExitDoorsUpdate(dt) {
     // TODO: push player out of the container
-    if (numAvatarsInContainer === 0) {
+    if (numAvatarsInContainer() === 0) {
         setState("idle");
     }
 }
@@ -159,11 +159,47 @@ function setState(newState) {
     }
 }
 
+function numAvatarsInEntry() {
+    var count = 0;
+    var keys = Object.keys(numAvatarsInEntryTriggerMap);
+    var i, l = keys.length;
+    for (i = 0; i < l; i++) {
+        if (numAvatarsInEntryTriggerMap[keys[i]] > 0.0) {
+            count++;
+        }
+    }
+    return count;
+}
+
+function numAvatarsInContainer() {
+    var count = 0;
+    var keys = Object.keys(numAvatarsInContainerTriggerMap);
+    var i, l = keys.length;
+    for (i = 0; i < l; i++) {
+        if (numAvatarsInContainerTriggerMap[keys[i]] > 0.0) {
+            count++;
+        }
+    }
+    return count;
+}
+
 function update(dt) {
     var updateFunc = stateTable[state].update;
     timeInState += dt;
     if (updateFunc) {
         updateFunc(dt);
+    }
+
+    // decrement timers for trigger maps
+    var keys = Object.keys(numAvatarsInEntryTriggerMap);
+    var i, l = keys.length;
+    for (i = 0; i < l; i++) {
+        numAvatarsInEntryTriggerMap[keys[i]] -= dt;
+    }
+    keys = Object.keys(numAvatarsInContainerTriggerMap);
+    l = keys.length;
+    for (i = 0; i < l; i++) {
+        numAvatarsInContainerTriggerMap[keys[i]] -= dt;
     }
 }
 
@@ -181,24 +217,23 @@ Script.update.connect(update);
 
 Messages.subscribe(TRIGGER_CHANNEL);
 Messages.messageReceived.connect(function (channel, message, senderID) {
+
+    var AVATAR_TRIGGER_TIMEOUT = 10.0;
     print("MESSAGE, channel = " + channel + ", message = " + message + ", senderID = " + senderID);
     if (channel === TRIGGER_CHANNEL) {
         var data = JSON.parse(message);
-        switch (data.action) {
-        case 'enter':
+        if (data.inside) {
             if (data.entityID === lookupEntityByName("entry-back-trigger")) {
-                numAvatarsInEntryTrigger++;
+                numAvatarsInEntryTriggerMap[senderID] = AVATAR_TRIGGER_TIMEOUT;
             } else if (data.entityID === lookupEntityByName("container-trigger")) {
-                numAvatarsInContainer++;
+                numAvatarsInContainerTriggerMap[senderID] = AVATAR_TRIGGER_TIMEOUT;
             }
-            break;
-        case 'leave':
+        } else {
             if (data.entityID === lookupEntityByName("entry-back-trigger")) {
-                numAvatarsInEntryTrigger--;
+                numAvatarsInEntryTriggerMap[senderID] = 0;
             } else if (data.entityID === lookupEntityByName("container-trigger")) {
-                numAvatarsInContainer--;
+                numAvatarsInContainerTriggerMap[senderID] = 0;
             }
-            break;
         }
     } else if (channel === RESET_CHANNEL) {
         reset();
