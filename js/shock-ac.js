@@ -30,11 +30,11 @@ var state;
 var timeInState = 0;
 var stateEnterTime = Date.now();
 
-var DOOR_SLAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/door-slam.wav?2";
+var DOOR_SLAM_URL = "https://s3-us-west-1.amazonaws.com/hifi-content/DomainContent/Junkyard/dieFi/door-slam.wav";
 var doorSlamSound = SoundCache.getSound(DOOR_SLAM_URL);
 var doorSlamInjector;
 
-var SCREAM_URL = "https://s3.amazonaws.com/hifi-public/tony/shock/screams.wav?1";
+var SCREAM_URL = "https://s3-us-west-1.amazonaws.com/hifi-content/DomainContent/Junkyard/dieFi/screams.wav";
 var screamSound = SoundCache.getSound(SCREAM_URL);
 var screamInjector;
 
