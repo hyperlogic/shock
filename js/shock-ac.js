@@ -347,7 +347,8 @@ function reset() {
     goToState("idle");
 }
 
-EntityViewer.setPosition(ORIGIN);
+var DEFAULT_CONTAINER_LOCATION = { x: 186.0, y: -7.5, z: 377.9 };
+EntityViewer.setPosition(DEFAULT_CONTAINER_LOCATION);
 EntityViewer.setCenterRadius(60000);
 var octreeQueryInterval = Script.setInterval(function() {
     EntityViewer.queryOctree();
