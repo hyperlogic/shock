@@ -31,7 +31,6 @@ var TRIGGER_CHANNEL = "shock-trigger-channel";
     };
     function sendUpdate() {
         Messages.sendMessage(TRIGGER_CHANNEL, JSON.stringify({ inside: inside, entityID: entityID }));
-        print("sendMessage inside = " + inside + ", entityID = " + entityID);
     };
     this.unload = function (entityID) {
         Script.update.disconnect(this.update);
