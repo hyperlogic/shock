@@ -82,7 +82,7 @@ function debug(str) {
 }
 
 function uninitializedUpdate(dt) {
-    var entities = Entities.findEntities(DEFAULT_CONTAINER_POSITION, 100);
+    var entities = Entities.findEntities(DEFAULT_CONTAINER_LOCATION, 100);
 
     if (entities.length === 0) {
         // try again later...
