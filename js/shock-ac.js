@@ -5,6 +5,8 @@
 //
 
 var ORIGIN = {x: 0, y: 0, z: 0};
+var DEFAULT_CONTAINER_LOCATION = { x: 186.0, y: -7.5, z: 377.9 };
+
 var initialized = false;
 var frameCount = 0;
 var TRIGGER_CHANNEL = "shock-trigger-channel";
@@ -80,7 +82,7 @@ function debug(str) {
 }
 
 function uninitializedUpdate(dt) {
-    var entities = Entities.findEntities(ORIGIN, 100);
+    var entities = Entities.findEntities(DEFAULT_CONTAINER_POSITION, 100);
 
     if (entities.length === 0) {
         // try again later...
@@ -137,7 +139,7 @@ function closeEntryDoorsEnter() {
 
     // slam the door!
     var id = lookupEntityByName("entry-collision");
-    var doorPosition = ORIGIN;
+    var doorPosition = DEFAULT_CONTAINER_LOCATION;
     if (id) {
         doorPosition = Entities.getEntityProperties(id, "position").position;
     }
@@ -168,7 +170,7 @@ function lightsOutEnter() {
 
     // begin the scream track
     var id = lookupEntityByName("container-trigger");
-    var screamPosition = ORIGIN;
+    var screamPosition = DEFAULT_CONTAINER_LOCATION;
     if (id) {
         screamPosition = Entities.getEntityProperties(id, "position").position;
     }
@@ -242,7 +244,7 @@ function openExitDoorsEnter() {
 
     // play door slam
     var id = lookupEntityByName("exit-collision");
-    var doorPosition = ORIGIN;
+    var doorPosition = DEFAULT_CONTAINER_LOCATION;
     if (id) {
         doorPosition = Entities.getEntityProperties(id, "position").position;
     }
@@ -347,7 +349,6 @@ function reset() {
     goToState("idle");
 }
 
-var DEFAULT_CONTAINER_LOCATION = { x: 186.0, y: -7.5, z: 377.9 };
 EntityViewer.setPosition(DEFAULT_CONTAINER_LOCATION);
 EntityViewer.setCenterRadius(60000);
 var octreeQueryInterval = Script.setInterval(function() {
