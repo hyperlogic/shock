@@ -81,28 +81,39 @@ function debug(str) {
     }
 }
 
+var uninitializedUpdateCount = 0;
+
 function uninitializedUpdate(dt) {
-    var entities = Entities.findEntities(DEFAULT_CONTAINER_LOCATION, 100);
+    uninitializedUpdateCount++;
+    if (uninitializedUpdateCount % 15 === 0) {
+        var entities = Entities.findEntities(DEFAULT_CONTAINER_LOCATION, 100);
 
-    if (entities.length === 0) {
-        // try again later...
-        return;
-    }
-
-    // fill up entityIDMap
-    var i, l = entities.length;
-    for (i = 0; i < l; i++) {
-        var name = Entities.getEntityProperties(entities[i], "name").name;
-        var j, ll = entityNames.length;
-        for (j = 0; j < ll; j++) {
-            if (name === entityNames[j]) {
-                print("Found " + entityNames[j] + ": " + entities[i]);
-                entityIDMap[entityNames[j]] = entities[i];
+        // fill up entityIDMap
+        var foundEntityCount = 0;
+        var i, l = entities.length;
+        for (i = 0; i < l; i++) {
+            var name = Entities.getEntityProperties(entities[i], "name").name;
+            var j, ll = entityNames.length;
+            for (j = 0; j < ll; j++) {
+                if (name === entityNames[j]) {
+                    print("Found " + entityNames[j] + ": " + entities[i]);
+                    entityIDMap[entityNames[j]] = entities[i];
+                    foundEntityCount++;
+                }
             }
         }
-    }
 
-    setState("idle");
+        if (foundEntityCount !== entityNames.length) {
+            print("Warning: found " + foundEntityCount + " out of " + entityNames.length + " entities.  Will try again later.");
+            // try again later...
+            return;
+        } else {
+            print("Success: found " + foundEntityCount + " out of " + entityNames.length + " entities.  Initialization complete!");
+        }
+
+        // success! go to idle state.
+        setState("idle");
+    }
 }
 
 //
@@ -350,7 +361,7 @@ function reset() {
 }
 
 EntityViewer.setPosition(DEFAULT_CONTAINER_LOCATION);
-EntityViewer.setCenterRadius(60000);
+EntityViewer.setCenterRadius(100);
 var octreeQueryInterval = Script.setInterval(function() {
     EntityViewer.queryOctree();
 }, 1000);
