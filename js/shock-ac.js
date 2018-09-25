@@ -12,16 +12,17 @@ var frameCount = 0;
 var TRIGGER_CHANNEL = "shock-trigger-channel";
 var RESET_CHANNEL = "shock-reset-channel";
 
-var entityNames = ["debug-panel",
-                   "entry-back-trigger",  // used to detect when avatar is deep inside container.
-                   "container-trigger",   // used to detect when avatars are in the container.
-                   "entry-collision",     // used to block front of container
-                   "exit-collision",      // used to block back of container
-                   "entry-light",         // entry way light.
-                   "strobe-light",        // strobe light in middle of container
-                   "exit-light",          // exit way light.
-                   "bloody-container"     // bloody interior
-                  ];
+var entityNames = [
+    "diefi-debug-panel",
+    "diefi-entry-back-trigger", // used to detect when avatar is deep inside container.
+    "diefi-container-trigger", // used to detect when avatars are in the container.
+    "diefi-ntry-collision", // used to block front of container
+    "diefi-exit-collision", // used to block back of container
+    "diefi-entry-light", // entry way light.
+    "diefi-strobe-light", // strobe light in middle of container
+    "diefi-exit-light", // exit way light.
+    "diefi-bloody-container" // bloody interior
+];
 
 var entityIDMap = {};
 
@@ -73,11 +74,12 @@ function lookupEntityByName(name) {
 
 var lineBuffer = ["~", "~", "~", "~", "~", "~", "~", "~", "~"];
 function debug(str) {
+    var NUM_LINES = 8;
     print(str);
     lineBuffer.push(str);
     var debugPanelID = entityIDMap["debug-panel"];
     if (debugPanelID) {
-        Entities.editEntity(debugPanelID, {text: lineBuffer.slice(-8, lineBuffer.length).join("\n")});
+        Entities.editEntity(debugPanelID, {text: lineBuffer.slice(-NUM_LINES, lineBuffer.length).join("\n")});
     }
 }
 
@@ -85,8 +87,10 @@ var uninitializedUpdateCount = 0;
 
 function uninitializedUpdate(dt) {
     uninitializedUpdateCount++;
-    if (uninitializedUpdateCount % 15 === 0) {
-        var entities = Entities.findEntities(DEFAULT_CONTAINER_LOCATION, 100);
+    var NUM_UPDATES_TO_SKIP = 15;
+    if (uninitializedUpdateCount % NUM_UPDATES_TO_SKIP === 0) {
+        var LOOKUP_RADIUS = 100;
+        var entities = Entities.findEntities(DEFAULT_CONTAINER_LOCATION, LOOKUP_RADIUS);
 
         // fill up entityIDMap
         var foundEntityCount = 0;
@@ -195,7 +199,8 @@ function lightsOutEnter() {
 }
 
 function lightsOutUpdate() {
-    if (timeInState > 6) {
+    var TIME_IN_LIGHTS_OUT_STATE = 6;
+    if (timeInState > TIME_IN_LIGHTS_OUT_STATE) {
         setState("strobe");
     }
 }
@@ -213,14 +218,18 @@ function strobeEnter() {
 function strobeUpdate(dt) {
 
     strobeTimer += dt;
-    if (strobeTimer > 0.05) {
+    var STROBE_TIME = 0.05;
+    var STROBE_ON_INTENSITY = 0.7;
+    var STROBE_OFF_INTENSITY = 0.7;
+    if (strobeTimer > STROBE_TIME) {
         strobeTimer = 0.0;
         strobeBlink = !strobeBlink;
-        editEntity("strobe-light", { intensity: strobeBlink ? 0.7 : 0.0 });
+        editEntity("strobe-light", { intensity: strobeBlink ? STROBE_ON_INTENSITY : STROBE_OFF_INTENSITY });
     }
 
     // after five seconds turn the lights out again!
-    if (timeInState > 8.0) {
+    var TIME_IN_STROBE_STATE = 8;
+    if (timeInState > TIME_IN_STROBE_STATE) {
         setState("lightsOutAgain");
     }
 }
@@ -238,7 +247,8 @@ function lightsOutAgainEnter() {
 }
 
 function lightsOutAgainUpdate(dt) {
-    if (timeInState > 4.0) {
+    var TIME_IN_LIGHTS_OUT_AGAIN_STATE = 4;
+    if (timeInState > TIME_IN_LIGHTS_OUT_AGAIN_STATE) {
         setState("openExitDoors");
     }
 }
@@ -337,7 +347,8 @@ function numAvatarsInContainer() {
 function update(dt) {
     var updateFunc = stateTable[state].update;
 
-    timeInState = (Date.now() - stateEnterTime) / 1000.0;
+    var MS_IN_SEC = 1000;
+    timeInState = (Date.now() - stateEnterTime) / MS_IN_SEC;
 
     if (updateFunc) {
         updateFunc(dt);
@@ -357,14 +368,16 @@ function update(dt) {
 }
 
 function reset() {
-    goToState("idle");
+    setState("idle");
 }
 
 EntityViewer.setPosition(DEFAULT_CONTAINER_LOCATION);
-EntityViewer.setCenterRadius(100);
+var ENTITY_VIEWER_RADIUS = 100;
+var ENTITY_VIEWER_INTERVAL_TIME = 1000;
+EntityViewer.setCenterRadius(ENTITY_VIEWER_RADIUS);
 var octreeQueryInterval = Script.setInterval(function() {
     EntityViewer.queryOctree();
-}, 1000);
+}, ENTITY_VIEWER_INTERVAL_TIME);
 
 Script.update.connect(update);
 
@@ -372,7 +385,7 @@ Messages.subscribe(TRIGGER_CHANNEL);
 Messages.messageReceived.connect(function (channel, message, senderID) {
 
     var AVATAR_TRIGGER_TIMEOUT = 10.0;
-    //print("MESSAGE, channel = " + channel + ", message = " + message + ", senderID = " + senderID);
+    // print("MESSAGE, channel = " + channel + ", message = " + message + ", senderID = " + senderID);
     if (channel === TRIGGER_CHANNEL) {
         var data = JSON.parse(message);
         if (data.inside) {
